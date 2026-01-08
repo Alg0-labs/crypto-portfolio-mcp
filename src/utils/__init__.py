@@ -28,6 +28,10 @@ from .chains import (
     validate_chain,
 )
 
+from .portfolio import (
+    PortfolioAnalyzer,
+)
+
 
 __all__ = [
     "validate_symbol",
@@ -49,4 +53,5 @@ __all__ = [
     "get_chain_by_id",
     "list_supported_chains",
     "validate_chain",
+    "PortfolioAnalyzer",
 ]
