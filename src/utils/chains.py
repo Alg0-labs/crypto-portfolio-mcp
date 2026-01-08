@@ -11,6 +11,7 @@ class Chain:
     name: str
     symbol: str
     explorer: str
+    moralis_id: str 
 
 
 
@@ -19,49 +20,58 @@ CHAINS: Dict[str, Chain] = {
         id=1,
         name="Ethereum",
         symbol="ETH",
-        explorer="https://etherscan.io"
+        explorer="https://etherscan.io",
+        moralis_id="eth"
     ),
     "base": Chain(
         id=199,
         name="Base",
         symbol="ETH",
-        explorer="https://basescan.org"
+        explorer="https://basescan.org",
+        moralis_id="base"
     ),
     "solana": Chain(
         id=16,
         name="Solana",
         symbol="SOL",
-        explorer="https://solscan.io"
+        explorer="https://solscan.io",
+        moralis_id="solana"
     ),
     "polygon": Chain(
         id=25,
         name="Polygon",
         symbol="MATIC",
-        explorer="https://polygonscan.com"
+        explorer="https://polygonscan.com",
+        moralis_id="polygon"
     ),
     "arbitrum": Chain(
         id=51,
         name="Arbitrum",
         symbol="ETH",
-        explorer="https://arbiscan.io"
+        explorer="https://arbiscan.io",
+        moralis_id="arbitrum"
     ),
     "optimism": Chain(
         id=42,
         name="Optimism",
         symbol="ETH",
-        explorer="https://optimistic.etherscan.io"
+        explorer="https://optimistic.etherscan.io",
+        moralis_id="optimism"
+
     ),
     "avalanche": Chain(
         id=28,
         name="Avalanche C-Chain",
         symbol="AVAX",
-        explorer="https://snowtrace.io"
+        explorer="https://snowtrace.io",
+        moralis_id="avalanche"
     ),
     "bnb": Chain(
         id=14,
         name="BNB Chain",
         symbol="BNB",
-        explorer="https://bscscan.com"
+        explorer="https://bscscan.com",
+        moralis_id="bsc"
     ),
 }
 
