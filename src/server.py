@@ -1,6 +1,5 @@
 """
-CoinMarketCap MCP Server - Multi-Chain 
-
+CoinMarketCap MCP Server - Multi-Chain + Portfolio Edition
 """
 
 import asyncio
@@ -14,6 +13,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from .api.coinmarketcap import CoinMarketCapClient, CoinMarketCapAPIError
+from .api.blockchain import MoralisClient, BlockchainAPIError
 from .utils.formatters import (
     format_token_info,
     format_token_list,
@@ -26,6 +26,7 @@ from .utils.validators import (
     validate_symbols,
     validate_limit,
     validate_timeframe,
+    validate_wallet_address,
     ValidationError,
 )
 from .utils.chains import (
@@ -35,9 +36,13 @@ from .utils.chains import (
     list_supported_chains,
     validate_chain,
 )
+from .utils.portfolio import (
+    PortfolioAnalyzer,
+)
 
 
 load_dotenv()
+
 
 logging.basicConfig(
     level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
@@ -45,8 +50,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("coinmarketcap-mcp")
 
+
 server = Server("coinmarketcap-mcp")
+
+
 api_client: CoinMarketCapClient = None
+blockchain_client: MoralisClient = None
+portfolio_analyzer: PortfolioAnalyzer = None
 
 
 # ============================================================================
@@ -55,24 +65,25 @@ api_client: CoinMarketCapClient = None
 
 @server.list_tools()
 async def list_tools() -> list[Tool]:
-    """Define all 8 multi-chain tools."""
     
     
     supported_chains = ", ".join(list_supported_chains())
     
     return [
+       
         
         Tool(
             name="get_token_info",
-            description=f"""Get information about a cryptocurrency token.
+            description=f"""Get comprehensive information about a cryptocurrency token.
             
-            """,
+            
+            Supported chains: {supported_chains}""",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "symbol": {
                         "type": "string",
-                        "description": "Token symbol",
+                        "description": "Token symbol (e.g., WETH, SOL, MATIC)",
                     },
                     "chain": {
                         "type": "string",
@@ -83,12 +94,11 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="list_tokens",
             description=f"""List top cryptocurrency tokens on any blockchain network.
             
-            """,
+            Supported chains: {supported_chains}""",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -112,12 +122,9 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="get_market_metrics",
-            description=f"""Fetch market metrics for one or more tokens.
-            
-            """,
+            description="Fetch market metrics for one or more tokens.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -137,12 +144,9 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="get_token_analytics",
-            description=f"""Get analytical insights about a token's performance.
-            
-            """,
+            description="Get analytical insights about a token's performance.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -165,12 +169,9 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="compare_tokens",
-            description=f"""Compare multiple tokens side-by-side.
-            
-            """,
+            description="Compare multiple tokens side-by-side.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -190,29 +191,20 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="list_chains",
             description="""List all supported blockchain networks.
             
-            Returns information about each chain:
-            - Chain name and native token
-            - CoinMarketCap platform ID
-            - Block explorer URL
-            
-            Use this to discover available chains.""",
+            """,
             inputSchema={
                 "type": "object",
                 "properties": {},
             },
         ),
         
-        
         Tool(
             name="compare_chains",
-            description="""Compare token ecosystems across multiple blockchains.
-            
-            """,
+            description="Compare token ecosystems across multiple blockchains.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -225,7 +217,7 @@ async def list_tools() -> list[Tool]:
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Tokens per chain to analyze (default: 10)",
+                        "description": "Tokens per chain to analyze",
                         "default": 10,
                     },
                 },
@@ -233,12 +225,9 @@ async def list_tools() -> list[Tool]:
             },
         ),
         
-        
         Tool(
             name="search_token_across_chains",
-            description="""Search for a token across all supported blockchains.
-            
-            """,
+            description="Search for a token across all supported blockchains.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -250,7 +239,97 @@ async def list_tools() -> list[Tool]:
                 "required": ["symbol"],
             },
         ),
+        
+        
+        
+        Tool(
+            name="analyze_wallet",
+            description="""Analyze a crypto wallet's complete portfolio.
+            
+            """,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Wallet address",
+                    },
+                    "chain": {
+                        "type": "string",
+                        "description": f"Blockchain name ({supported_chains})",
+                        "enum": list(CHAINS.keys()),
+                    },
+                },
+                "required": ["address", "chain"],
+            },
+        ),
+        
+        Tool(
+            name="get_portfolio_recommendations",
+            description="""Get AI-powered recommendations for your portfolio.
+            """,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Wallet address",
+                    },
+                    "chain": {
+                        "type": "string",
+                        "description": f"Blockchain name ({supported_chains})",
+                        "enum": list(CHAINS.keys()),
+                    },
+                },
+                "required": ["address", "chain"],
+            },
+        ),
+        
+        Tool(
+            name="compare_portfolio_to_market",
+            description="""Compare your portfolio performance to market averages.
+            
+            """,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Wallet address",
+                    },
+                    "chain": {
+                        "type": "string",
+                        "description": f"Blockchain name ({supported_chains})",
+                        "enum": list(CHAINS.keys()),
+                    },
+                },
+                "required": ["address", "chain"],
+            },
+        ),
+        
+        Tool(
+            name="get_portfolio_summary",
+            description="""Get a quick summary of a wallet's portfolio.
+            
+            """,
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Wallet address",
+                    },
+                    "chain": {
+                        "type": "string",
+                        "description": f"Blockchain name ({supported_chains})",
+                        "enum": list(CHAINS.keys()),
+                    },
+                },
+                "required": ["address", "chain"],
+            },
+        ),
     ]
+
 
 # ============================================================================
 # TOOL CALL ROUTER
@@ -258,9 +337,10 @@ async def list_tools() -> list[Tool]:
 
 @server.call_tool()
 async def call_tool(name: str, arguments: Any) -> list[TextContent]:
-    """Route tool calls to handlers."""
+    
     try:
         logger.info(f"Tool called: {name}")
+        
         
         if name == "get_token_info":
             result = await handle_get_token_info(arguments)
@@ -278,6 +358,17 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await handle_compare_chains(arguments)
         elif name == "search_token_across_chains":
             result = await handle_search_token_across_chains(arguments)
+        
+        
+        elif name == "analyze_wallet":
+            result = await handle_analyze_wallet(arguments)
+        elif name == "get_portfolio_recommendations":
+            result = await handle_get_portfolio_recommendations(arguments)
+        elif name == "compare_portfolio_to_market":
+            result = await handle_compare_portfolio_to_market(arguments)
+        elif name == "get_portfolio_summary":
+            result = await handle_get_portfolio_summary(arguments)
+        
         else:
             raise ValueError(f"Unknown tool: {name}")
         
@@ -286,7 +377,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
     except (ValidationError, ValueError) as e:
         logger.warning(f"Validation error in {name}: {e}")
         return [TextContent(type="text", text=f"Invalid input: {str(e)}")]
-    except CoinMarketCapAPIError as e:
+    except (CoinMarketCapAPIError, BlockchainAPIError) as e:
         logger.error(f"API error in {name}: {e}")
         return [TextContent(type="text", text=f"API error: {str(e)}")]
     except Exception as e:
@@ -295,13 +386,12 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
 
 # ============================================================================
-# TOOL HANDLERS
+# MARKET DATA TOOL HANDLERS
 # ============================================================================
 
 async def handle_get_token_info(args: dict) -> str:
-    """Get token info - supports multi-chain."""
-    symbol = validate_symbol(args["symbol"])
     
+    symbol = validate_symbol(args["symbol"])
     
     platform_id = None
     chain_name = None
@@ -317,7 +407,6 @@ async def handle_get_token_info(args: dict) -> str:
         return f"Token '{symbol}' not found{chain_msg}. Try a different chain or check the symbol."
     
     info = format_token_info(token)
-    
     
     chain_display = ""
     if chain_name:
@@ -354,7 +443,7 @@ async def handle_get_token_info(args: dict) -> str:
 
 
 async def handle_list_tokens(args: dict) -> str:
-    """List tokens on specified chain."""
+    
     chain_name = validate_chain(args["chain"])
     limit = validate_limit(args.get("limit", 20), max_val=100)
     sort_by = args.get("sort_by", "volume_24h")
@@ -390,7 +479,7 @@ async def handle_list_tokens(args: dict) -> str:
 
 
 async def handle_get_market_metrics(args: dict) -> str:
-    """Get metrics for multiple tokens."""
+    
     symbols = validate_symbols(args["symbols"])
     
     platform_id = None
@@ -419,7 +508,7 @@ async def handle_get_market_metrics(args: dict) -> str:
 
 
 async def handle_get_token_analytics(args: dict) -> str:
-    """Get token analytics."""
+    
     symbol = validate_symbol(args["symbol"])
     timeframe = validate_timeframe(args.get("timeframe", "24h"))
     
@@ -463,7 +552,7 @@ async def handle_get_token_analytics(args: dict) -> str:
 
 
 async def handle_compare_tokens(args: dict) -> str:
-    """Compare multiple tokens."""
+    
     symbols = validate_symbols(args["symbols"])
     
     if len(symbols) < 2:
@@ -526,7 +615,7 @@ async def handle_list_chains(args: dict) -> str:
 
 
 async def handle_compare_chains(args: dict) -> str:
-    """Compare multiple blockchain ecosystems."""
+    
     chain_names = [validate_chain(c) for c in args["chains"]]
     
     if len(chain_names) < 2:
@@ -584,7 +673,7 @@ async def handle_compare_chains(args: dict) -> str:
 
 
 async def handle_search_token_across_chains(args: dict) -> str:
-    """Search for a token across all chains."""
+    
     symbol = validate_symbol(args["symbol"])
     
     result = f"# Cross-Chain Search: {symbol}\n\n"
@@ -621,7 +710,6 @@ async def handle_search_token_across_chains(args: dict) -> str:
             f"{token['market_cap']} | [Link]({token['explorer']}) |\n"
         )
     
-    
     if len(found_tokens) > 1:
         prices = [t['price_raw'] for t in found_tokens]
         highest = max(prices)
@@ -637,22 +725,307 @@ async def handle_search_token_across_chains(args: dict) -> str:
 
 
 # ============================================================================
+# PORTFOLIO TOOL HANDLERS 
+# ============================================================================
+
+async def handle_analyze_wallet(args: dict) -> str:
+    
+    address = validate_wallet_address(args["address"], args["chain"])
+    chain = validate_chain(args["chain"])
+    
+    
+    logger.info(f"Fetching balances for {address[:10]}... on {chain}")
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    
+    
+    total_value = wallet_data.get("total_usd_value", 0)
+    
+    if total_value == 0:
+        return f"# Wallet Analysis: {address[:10]}...{address[-8:]}\n\n**Status:** Empty wallet - No holdings with value found."
+    
+    
+    analysis = portfolio_analyzer.analyze_portfolio(wallet_data)
+    
+    
+    summary = analysis["summary"]
+    holdings = analysis["holdings"]
+    allocation = analysis["allocation"]
+    risk = analysis["risk"]
+    performance = analysis["performance"]
+    insights = analysis["insights"]
+    
+    result = f"""# Portfolio Analysis: {address[:10]}...{address[-8:]}
+
+**Chain:** {chain.title()}
+**Total Value:** ${summary['total_value']:,.2f}
+**Holdings:** {summary['total_holdings']} assets
+
+---
+
+## Holdings
+
+| Asset | Balance | Price | Value | Allocation | 24h Change |
+|-------|---------|-------|-------|------------|------------|
+"""
+    
+    for holding in holdings:
+        verified_badge = "Verified" if holding.get("verified") else ""
+        result += (
+            f"| {holding['symbol']} {verified_badge} | {holding['balance']:.4f} | "
+            f"${holding['price']:.2f} | ${holding['value']:,.2f} | "
+            f"{holding['allocation']:.1f}% | {holding['change_24h']:+.2f}% |\n"
+        )
+    
+    result += f"""
+---
+
+## Asset Allocation
+
+- **Diversification Score:** {allocation['diversification_score']}/100
+- **Top 3 Holdings:** {allocation['top_3_percentage']:.1f}% of portfolio
+- **Concentration Level:** {allocation['concentration']}
+
+### Top Holdings:
+"""
+    
+    for i, holding in enumerate(allocation['top_holdings'], 1):
+        result += f"{i}. **{holding['symbol']}** - {holding['allocation']:.1f}% (${holding['value']:,.2f})\n"
+    
+    result += f"""
+---
+
+## Risk Assessment
+
+- **Risk Level:** {risk['level']}
+- **Risk Score:** {risk['score']}/100
+
+"""
+    
+    if risk['factors']:
+        result += "**Risk Factors:**\n"
+        for factor in risk['factors']:
+            result += f"- {factor}\n"
+    
+    result += f"""
+---
+
+## Performance (24h)
+
+- **Portfolio Change:** {performance['total_change_24h']:+.2f}%
+- **Winners:** {performance['winners_count']} | **Losers:** {performance['losers_count']}
+"""
+    
+    if performance['best_performer']:
+        result += f"- **Best Performer:** {performance['best_performer']['symbol']} ({performance['best_performer']['change']:+.2f}%)\n"
+    
+    if performance['worst_performer']:
+        result += f"- **Worst Performer:** {performance['worst_performer']['symbol']} ({performance['worst_performer']['change']:+.2f}%)\n"
+    
+    result += "\n---\n\n## Insights\n\n"
+    
+    for insight in insights:
+        result += f"{insight}\n\n"
+    
+    return result
+
+
+async def handle_get_portfolio_recommendations(args: dict) -> str:
+    
+    address = validate_wallet_address(args["address"], args["chain"])
+    chain = validate_chain(args["chain"])
+    
+    
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    
+    if wallet_data.get("total_usd_value", 0) == 0:
+        return f"Cannot generate recommendations for empty wallet."
+    
+    
+    analysis = portfolio_analyzer.analyze_portfolio(wallet_data)
+    
+    
+    recommendations = portfolio_analyzer.generate_recommendations(analysis)
+    
+    result = f"""# Portfolio Recommendations: {address[:10]}...{address[-8:]}
+
+**Chain:** {chain.title()}
+**Total Value:** ${analysis['summary']['total_value']:,.2f}
+
+---
+
+"""
+    
+    if not recommendations:
+        result += "**Your portfolio looks well-balanced!** No immediate recommendations.\n"
+    else:
+        for i, rec in enumerate(recommendations, 1):
+            priority_emoji = {
+                "High": "RED",
+                "Medium": "YELLOW",
+                "Low": "GREEN"
+            }.get(rec['priority'], "⚪")
+            
+            result += f"""## {priority_emoji} {rec['type']} ({rec['priority']} Priority)
+
+**Action:** {rec['action']}
+
+**Reasoning:** {rec['reasoning']}
+
+---
+
+"""
+    
+    return result
+
+
+async def handle_compare_portfolio_to_market(args: dict) -> str:
+    
+    address = validate_wallet_address(args["address"], args["chain"])
+    chain = validate_chain(args["chain"])
+    
+    
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    
+    if wallet_data.get("total_usd_value", 0) == 0:
+        return "Cannot compare empty wallet to market."
+    
+    
+    analysis = portfolio_analyzer.analyze_portfolio(wallet_data)
+    portfolio_change = analysis["performance"]["total_change_24h"]
+    
+    
+    chain_obj = get_chain(chain)
+    market_tokens = await api_client.get_cryptocurrency_listing(
+        limit=20,
+        platform_id=chain_obj.id
+    )
+    
+    
+    market_changes = []
+    for token in market_tokens:
+        change = token.get("quotes", [{}])[0].get("percentChange24h", 0)
+        market_changes.append(change)
+    
+    market_avg = sum(market_changes) / len(market_changes) if market_changes else 0
+    
+    result = f"""# Portfolio vs Market Comparison
+
+**Wallet:** {address[:10]}...{address[-8:]}
+**Chain:** {chain.title()}
+
+---
+
+## 24h Performance Comparison
+
+| Metric | Your Portfolio | Market Average | Difference |
+|--------|---------------|----------------|------------|
+| 24h Change | {portfolio_change:+.2f}% | {market_avg:+.2f}% | {(portfolio_change - market_avg):+.2f}% |
+
+"""
+    
+    if portfolio_change > market_avg:
+        result += "**Your portfolio is outperforming the market!**\n\n"
+        result += f"Your portfolio is up {(portfolio_change - market_avg):.2f}% more than the average.\n"
+    elif portfolio_change < market_avg:
+        result += "**Your portfolio is underperforming the market.**\n\n"
+        result += f"Your portfolio is down {abs(portfolio_change - market_avg):.2f}% compared to the average.\n"
+    else:
+        result += "➡️ **Your portfolio is tracking the market.**\n\n"
+    
+    result += f"""
+---
+
+## Market Context
+
+Top performing tokens on {chain.title()} (24h):
+
+| Rank | Symbol | 24h Change |
+|------|--------|-----------|
+"""
+    
+    sorted_tokens = sorted(
+        market_tokens[:10],
+        key=lambda x: x.get("quotes", [{}])[0].get("percentChange24h", 0),
+        reverse=True
+    )[:5]
+    
+    for i, token in enumerate(sorted_tokens, 1):
+        change = token.get("quotes", [{}])[0].get("percentChange24h", 0)
+        result += f"| {i} | {token['symbol']} | {change:+.2f}% |\n"
+    
+    return result
+
+
+async def handle_get_portfolio_summary(args: dict) -> str:
+    
+    address = validate_wallet_address(args["address"], args["chain"])
+    chain = validate_chain(args["chain"])
+    
+    
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    
+    total_value = wallet_data.get("total_usd_value", 0)
+    
+    if total_value == 0:
+        return f"# Portfolio Summary: {address[:10]}...{address[-8:]}\n\n**Status:** Empty wallet"
+    
+    
+    analysis = portfolio_analyzer.analyze_portfolio(wallet_data)
+    
+    summary = analysis["summary"]
+    holdings = analysis["holdings"][:3]  # Top 3
+    performance = analysis["performance"]
+    
+    result = f"""# Portfolio Summary: {address[:10]}...{address[-8:]}
+
+**Chain:** {chain.title()}
+**Total Value:** ${summary['total_value']:,.2f}
+**Holdings:** {summary['total_holdings']} assets
+**24h Change:** {performance['total_change_24h']:+.2f}%
+
+---
+
+## Top Holdings
+
+"""
+    
+    for i, holding in enumerate(holdings, 1):
+        verified_badge = "Verified" if holding.get("verified") else ""
+        result += f"{i}. **{holding['symbol']}** {verified_badge} - ${holding['value']:,.2f} ({holding['allocation']:.1f}%)\n"
+    
+    if performance['best_performer']:
+        result += f"\n**Best Performer:** {performance['best_performer']['symbol']} ({performance['best_performer']['change']:+.2f}%)\n"
+    
+    if performance['worst_performer']:
+        result += f"**Worst Performer:** {performance['worst_performer']['symbol']} ({performance['worst_performer']['change']:+.2f}%)\n"
+    
+    return result
+
+
+# ============================================================================
 # SERVER LIFECYCLE
 # ============================================================================
 
 async def main():
-    """Main entry point."""
-    global api_client
+    
+    global api_client, blockchain_client, portfolio_analyzer
+    
     
     api_client = CoinMarketCapClient(
         base_url=os.getenv("API_BASE_URL", "https://api.coinmarketcap.com/data-api/v3"),
         timeout=int(os.getenv("API_TIMEOUT", "30"))
     )
     
+    
+    blockchain_client = MoralisClient(timeout=30)
+    
+    
+    portfolio_analyzer = PortfolioAnalyzer()
+    
     logger.info("=" * 60)
-    logger.info("CoinMarketCap MCP Server (Multi-Chain Edition)")
+    logger.info("CoinMarketCap MCP Server (Multi-Chain + Portfolio Edition)")
     logger.info(f"Supported Chains: {', '.join(sorted(CHAINS.keys()))}")
-    logger.info(f"Total Tools: 8")
+    logger.info(f"Total Tools: 12 (8 market + 4 portfolio)")
     logger.info("=" * 60)
     
     try:
@@ -664,6 +1037,7 @@ async def main():
             )
     finally:
         await api_client.close()
+        await blockchain_client.close()
         logger.info("Server shutdown")
 
 
