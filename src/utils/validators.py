@@ -92,3 +92,34 @@ def validate_timeframe(timeframe: str) -> str:
         )
 
     return timeframe
+
+
+def validate_wallet_address(address: str, chain: str) -> str:
+    
+    if not address or not isinstance(address, str):
+        raise ValidationError("Address must be a non-empty string")
+    
+    address = address.strip()
+    
+    
+    if chain in ["ethereum", "base", "polygon", "arbitrum", "optimism", "bnb", "avalanche"]:
+        
+        if not re.match(r'^0x[a-fA-F0-9]{40}$', address):
+            raise ValidationError(
+                f"Invalid {chain} address format. "
+                f"Must be 42 characters starting with 0x"
+            )
+    
+    
+    elif chain == "solana":
+        
+        if len(address) < 32 or len(address) > 44:
+            raise ValidationError(
+                "Invalid Solana address format. "
+                "Must be 32-44 characters"
+            )
+    
+    else:
+        raise ValidationError(f"Unsupported chain: {chain}")
+    
+    return address
