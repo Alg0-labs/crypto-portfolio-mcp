@@ -1,0 +1,44 @@
+
+version: '3.8'
+
+# ============================================================================
+# Services (Containers)
+# ============================================================================
+services:
+  
+  coinmarketcap-mcp:
+   
+    build: .                          
+    image: coinmarketcap-mcp:latest   
+    container_name: coinmarketcap-mcp 
+   
+    restart: unless-stopped
+    
+  
+    environment:
+      - MORALIS_API_KEY=${MORALIS_API_KEY}
+      - API_BASE_URL=${API_BASE_URL:-https://api.coinmarketcap.com/data-api/v3}
+      - API_TIMEOUT=${API_TIMEOUT:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    
+    env_file:
+      - .env
+    
+    
+    stdin_open: true  
+    tty: true         
+    
+    
+    volumes:
+      - ./logs:/app/logs
+    
+   
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'      
+          memory: 512M     
+        reservations:
+          cpus: '0.5'      
+          memory: 256M     
