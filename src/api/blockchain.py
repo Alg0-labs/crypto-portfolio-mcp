@@ -101,7 +101,7 @@ class MoralisClient:
             if e.response.status_code == 401:
                 raise BlockchainAPIError("Invalid Moralis API key")
             elif e.response.status_code == 429:
-                raise BlockchainAPIError("Rate limit exceeded. Try again in a moment.")
+                raise BlockchainAPIError("Rate limit exceeded.")
             else:
                 raise BlockchainAPIError(f"HTTP error: {e.response.status_code}")
         except Exception as e:
@@ -195,7 +195,7 @@ class MoralisClient:
             data = response.json()
             
             logger.info(
-                f"Portfolio net worth for {address[:10]}...: "
+                f"Portfolio net worth for {address[:10]}: "
                 f"${data.get('total_networth_usd', 0):,.2f}"
             )
             
