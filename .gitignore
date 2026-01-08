@@ -27,6 +27,7 @@ venv/
 
 # Environment variables
 .env.example
+.env
 
 # Logs
 *.log
