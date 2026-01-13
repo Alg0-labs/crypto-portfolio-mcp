@@ -29,6 +29,7 @@ Analyze wallets, get AI-powered recommendations, and track portfolios across 8+ 
 
 ## 📸 Example Output
 
+![Portfolio Analysis](docs/connector.png)
 ![Portfolio Analysis](docs/claude.png)
 
 Claude analyzes your wallet and provides:
