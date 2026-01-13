@@ -52,18 +52,7 @@ def format_supply(supply: float, max_supply: Optional[float] = None) -> str:
 
 
 def format_token_info(token: Dict) -> Dict[str, Any]:
-    """
-    Format comprehensive token information.
     
-    Args:
-        token: Raw token data from API
-        
-    Returns:
-        Dictionary with formatted token information
-        
-   
-        
-    """
   
     quotes = token.get("quotes", [{}])[0]
     
@@ -103,16 +92,7 @@ def format_token_info(token: Dict) -> Dict[str, Any]:
 
 
 def format_token_list(tokens: List[Dict]) -> List[Dict]:
-    """
-    Format a list of tokens for table display.
     
-    Args:
-        tokens: List of raw token data
-        
-    Returns:
-        List of dictionaries with essential formatted data
-        
-    """
     formatted = []
     
     for token in tokens:
@@ -134,16 +114,7 @@ def format_token_list(tokens: List[Dict]) -> List[Dict]:
 
 
 def format_comparison(tokens: List[Dict]) -> Dict[str, Any]:
-    """
-    Format multiple tokens for side-by-side comparison.
     
-    Args:
-        tokens: List of raw token data to compare
-        
-    Returns:
-        Dictionary with comparison data and summary statistics
-        
-    """
     comparison = {
         "tokens": [],
         "summary": {}
@@ -152,7 +123,7 @@ def format_comparison(tokens: List[Dict]) -> Dict[str, Any]:
     
     total_mcap = 0
     total_vol = 0
-    best_perf = None  # (symbol, change_percent) tuple
+    best_perf = None  
     worst_perf = None
     
     
@@ -200,17 +171,7 @@ def format_comparison(tokens: List[Dict]) -> Dict[str, Any]:
 
 
 def format_analytics(token: Dict, timeframe: str = "24h") -> Dict[str, Any]:
-    """
-    Format analytical insights for a token.
     
-    Args:
-        token: Raw token data
-        timeframe: Analysis period (1h, 24h, 7d, 30d)
-        
-    Returns:
-        Dictionary with analytical insights
-        
-    """
     quotes = token.get("quotes", [{}])[0]
     
     

@@ -1,6 +1,4 @@
-"""
-CoinMarketCap MCP Server - Multi-Chain + Portfolio Edition
-"""
+
 
 import asyncio
 import logging
@@ -930,7 +928,7 @@ async def handle_compare_portfolio_to_market(args: dict) -> str:
         result += "**Your portfolio is underperforming the market.**\n\n"
         result += f"Your portfolio is down {abs(portfolio_change - market_avg):.2f}% compared to the average.\n"
     else:
-        result += "➡️ **Your portfolio is tracking the market.**\n\n"
+        result += "**Your portfolio is tracking the market.**\n\n"
     
     result += f"""
 ---
@@ -973,7 +971,7 @@ async def handle_get_portfolio_summary(args: dict) -> str:
     analysis = portfolio_analyzer.analyze_portfolio(wallet_data)
     
     summary = analysis["summary"]
-    holdings = analysis["holdings"][:3]  # Top 3
+    holdings = analysis["holdings"][:3]  
     performance = analysis["performance"]
     
     result = f"""# Portfolio Summary: {address[:10]}...{address[-8:]}

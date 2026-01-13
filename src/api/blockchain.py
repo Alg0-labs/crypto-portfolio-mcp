@@ -1,7 +1,4 @@
-"""
-Moralis Blockchain API Client
 
-"""
 
 import httpx
 import logging

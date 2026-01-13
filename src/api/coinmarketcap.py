@@ -18,10 +18,7 @@ class CoinMarketCapAPIError(Exception):
 
 
 class CoinMarketCapClient:
-    """
-    Async HTTP client for CoinMarketCap API.
-    
-    """
+  
     
     def __init__(
         self,
@@ -218,19 +215,7 @@ class CoinMarketCapClient:
         sort_by: str = "volume_24h",
         platform_id: Optional[int] = None,
     ) -> List[Dict]:
-        """
-        Get cryptocurrency listings from CoinMarketCap.
-        
-        Args:
-            start: Starting position (pagination)
-            limit: Number of results (max 500)
-            sort_by: Sort field (volume_24h, market_cap, etc.)
-            platform_id: Filter by blockchain platform (199 = Base)
-            
-        Returns:
-            List of cryptocurrency data dictionaries
-            
-        """
+       
         
         params = {
             "start": start,
@@ -263,17 +248,7 @@ class CoinMarketCapClient:
         symbol: str, 
         platform_id: Optional[int] = None
     ) -> Optional[Dict]:
-        """
-        Get single token by its symbol.
-        
-        Args:
-            symbol: Token symbol 
-            platform_id: Optional platform filter
-            
-        Returns:
-            Token data dictionary or None if not found
-            
-        """
+       
         
         listings = await self.get_cryptocurrency_listing(
             limit=500,  
