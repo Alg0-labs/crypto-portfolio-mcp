@@ -31,25 +31,23 @@ class MoralisClient:
     
     BASE_URL = "https://deep-index.moralis.io/api/v2.2"
     
-    def __init__(self, timeout: int = 30):
-       
+    def __init__(self, api_key: str = "", timeout: int = 30):
+
         self.timeout = timeout
-        self.api_key = os.getenv("MORALIS_API_KEY", "")
-        
-        if not self.api_key:
-            raise BlockchainAPIError(
-                "MORALIS_API_KEY not found in environment. "
-               
-            )
-        
+        # Default/fallback key, used in local (stdio) mode. In remote (HTTP)
+        # mode each request supplies its own key via get_wallet_balances(api_key=...),
+        # so an empty default here is fine and is NOT an error.
+        self.api_key = api_key or os.getenv("MORALIS_API_KEY", "")
+
+        default_headers = {"accept": "application/json"}
+        if self.api_key:
+            default_headers["X-API-Key"] = self.api_key
+
         self.session = httpx.AsyncClient(
             timeout=timeout,
-            headers={
-                "accept": "application/json",
-                "X-API-Key": self.api_key
-            }
+            headers=default_headers,
         )
-        
+
         logger.info("Moralis client initialized")
     
     async def close(self):
@@ -69,18 +67,29 @@ class MoralisClient:
     async def get_wallet_balances(
         self,
         chain: str,
-        address: str
+        address: str,
+        api_key: Optional[str] = None,
     ) -> Dict[str, Any]:
-      
+
         chain_id = self._get_chain_id(chain)
-        
-        
+
+
         url = f"{self.BASE_URL}/wallets/{address}/tokens"
-        
+
         params = {"chain": chain_id}
-        
+
+        # Per-request key (remote multi-user mode) overrides the client default.
+        key = api_key or self.api_key
+        if not key:
+            raise BlockchainAPIError(
+                "No Moralis API key provided. Set MORALIS_API_KEY locally, or "
+                "send your own key in the 'X-Moralis-Key' request header when "
+                "using the hosted server."
+            )
+        request_headers = {"X-API-Key": key}
+
         try:
-            response = await self.session.get(url, params=params)
+            response = await self.session.get(url, params=params, headers=request_headers)
             response.raise_for_status()
             data = response.json()
             

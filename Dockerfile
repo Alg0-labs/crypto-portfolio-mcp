@@ -8,7 +8,9 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MCP_TRANSPORT=http \
+    PORT=8000
 
 
 RUN apt-get update && apt-get install -y \
@@ -37,8 +39,9 @@ USER mcpuser
 EXPOSE 8000
 
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import os,urllib.request,sys; urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"PORT\",\"8000\")}/health'); sys.exit(0)"
 
 
+# Runs the remote (HTTP) MCP transport because MCP_TRANSPORT=http is set above.
 CMD ["python", "-m", "src.server"]

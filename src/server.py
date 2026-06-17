@@ -57,8 +57,34 @@ blockchain_client: MoralisClient = None
 portfolio_analyzer: PortfolioAnalyzer = None
 
 
+def _get_moralis_key() -> str:
+    """Resolve the caller's Moralis API key.
+
+    Remote (HTTP) mode: read it from the per-request 'X-Moralis-Key' header
+    (or 'Authorization: Bearer <key>'), so each user brings their own key.
+    Local (stdio) mode: fall back to the MORALIS_API_KEY environment variable.
+    Returns "" if none is available; the caller surfaces a clear error.
+    """
+    request = None
+    try:
+        request = server.request_context.request
+    except LookupError:
+        request = None
+
+    if request is not None:  # remote HTTP transport carries the Starlette request
+        header_key = request.headers.get("X-Moralis-Key")
+        if not header_key:
+            auth = request.headers.get("Authorization", "")
+            if auth.lower().startswith("bearer "):
+                header_key = auth[7:].strip()
+        if header_key:
+            return header_key
+
+    return os.getenv("MORALIS_API_KEY", "")
+
+
 # ============================================================================
-# TOOL DEFINITIONS 
+# TOOL DEFINITIONS
 # ============================================================================
 
 @server.list_tools()
@@ -733,7 +759,7 @@ async def handle_analyze_wallet(args: dict) -> str:
     
     
     logger.info(f"Fetching balances for {address[:10]}... on {chain}")
-    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address, api_key=_get_moralis_key())
     
     
     total_value = wallet_data.get("total_usd_value", 0)
@@ -833,7 +859,7 @@ async def handle_get_portfolio_recommendations(args: dict) -> str:
     chain = validate_chain(args["chain"])
     
     
-    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address, api_key=_get_moralis_key())
     
     if wallet_data.get("total_usd_value", 0) == 0:
         return f"Cannot generate recommendations for empty wallet."
@@ -882,7 +908,7 @@ async def handle_compare_portfolio_to_market(args: dict) -> str:
     chain = validate_chain(args["chain"])
     
     
-    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address, api_key=_get_moralis_key())
     
     if wallet_data.get("total_usd_value", 0) == 0:
         return "Cannot compare empty wallet to market."
@@ -960,7 +986,7 @@ async def handle_get_portfolio_summary(args: dict) -> str:
     chain = validate_chain(args["chain"])
     
     
-    wallet_data = await blockchain_client.get_wallet_balances(chain, address)
+    wallet_data = await blockchain_client.get_wallet_balances(chain, address, api_key=_get_moralis_key())
     
     total_value = wallet_data.get("total_usd_value", 0)
     
@@ -1039,5 +1065,81 @@ async def main():
         logger.info("Server shutdown")
 
 
+def build_http_app():
+    """Build a Starlette ASGI app exposing this MCP server over Streamable HTTP.
+
+    The MCP endpoint is mounted at /mcp. Stateless mode is used so every request
+    is independent — ideal for a public, multi-user server where each caller
+    brings their own Moralis API key via the 'X-Moralis-Key' header.
+    """
+    import contextlib
+    from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+    from starlette.applications import Starlette
+    from starlette.routing import Mount, Route
+    from starlette.responses import JSONResponse
+
+    session_manager = StreamableHTTPSessionManager(
+        app=server,
+        json_response=False,
+        stateless=True,
+    )
+
+    async def handle_mcp(scope, receive, send):
+        await session_manager.handle_request(scope, receive, send)
+
+    async def health(_request):
+        return JSONResponse({"status": "ok", "server": "coinmarketcap-mcp"})
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_app):
+        global api_client, blockchain_client, portfolio_analyzer
+
+        api_client = CoinMarketCapClient(
+            base_url=os.getenv("API_BASE_URL", "https://api.coinmarketcap.com/data-api/v3"),
+            timeout=int(os.getenv("API_TIMEOUT", "30")),
+        )
+        blockchain_client = MoralisClient(timeout=30)  # per-request keys; no env key required
+        portfolio_analyzer = PortfolioAnalyzer()
+
+        async with session_manager.run():
+            logger.info("=" * 60)
+            logger.info("CoinMarketCap MCP Server — Streamable HTTP at /mcp")
+            logger.info(f"Supported Chains: {', '.join(sorted(CHAINS.keys()))}")
+            logger.info("=" * 60)
+            try:
+                yield
+            finally:
+                await api_client.close()
+                await blockchain_client.close()
+                logger.info("Server shutdown")
+
+    return Starlette(
+        routes=[
+            Route("/health", health),
+            # MCP endpoint. Requests to /mcp are 307-redirected to /mcp/, which
+            # preserves the POST body, so clients may use either form.
+            Mount("/mcp", app=handle_mcp),
+        ],
+        lifespan=lifespan,
+    )
+
+
+def main_http():
+    """Run the server as a remote MCP server over HTTP (for hosting)."""
+    import uvicorn
+
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(
+        build_http_app(),
+        host="0.0.0.0",
+        port=port,
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
+    )
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    # MCP_TRANSPORT=http -> remote/hosted mode; otherwise local stdio mode.
+    if os.getenv("MCP_TRANSPORT", "stdio").lower() == "http":
+        main_http()
+    else:
+        asyncio.run(main())

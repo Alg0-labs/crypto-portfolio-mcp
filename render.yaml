@@ -1,0 +1,21 @@
+# Render Blueprint — deploys this repo as a remote (hosted) MCP server.
+# In Render: New > Blueprint, point it at this repo, and it builds the Dockerfile.
+# The server is multi-user: it holds NO Moralis key. Each user sends their own
+# key in the 'X-Moralis-Key' request header, so you pay nothing for their usage.
+services:
+  - type: web
+    name: coinmarketcap-mcp
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: MCP_TRANSPORT
+        value: http
+      # Render injects PORT automatically; the server binds to it.
+      - key: LOG_LEVEL
+        value: INFO
+      - key: API_BASE_URL
+        value: https://api.coinmarketcap.com/data-api/v3
+      - key: API_TIMEOUT
+        value: "30"

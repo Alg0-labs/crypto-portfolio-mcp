@@ -201,6 +201,71 @@ docker-compose up
 
 ---
 
+## 🌐 Host it as a remote MCP server (multi-user)
+
+You can run this as a **public, hosted MCP server** that anyone can connect to.
+It runs the MCP Streamable HTTP transport at `/mcp` and is **multi-user by
+design**: the server stores **no** Moralis key. Each user supplies their **own**
+Moralis API key on every request via the `X-Moralis-Key` header — so you never
+pay for their usage and there's nothing to abuse.
+
+> The market-data tools use a public CoinMarketCap endpoint and need no key.
+> Only the 4 portfolio tools need a Moralis key, taken from the caller's header.
+
+### Run the HTTP transport locally
+
+```bash
+MCP_TRANSPORT=http PORT=8000 python -m src.server
+# Health check:  curl http://localhost:8000/health
+# MCP endpoint:  http://localhost:8000/mcp
+```
+
+### Deploy to Render (free tier)
+
+1. Push this repo to GitHub.
+2. In Render: **New → Blueprint**, select the repo. The included
+   [`render.yaml`](render.yaml) builds the Dockerfile and sets `MCP_TRANSPORT=http`.
+   (No `MORALIS_API_KEY` is set on the server — that's intentional.)
+3. Deploy. Your server is live at `https://<your-app>.onrender.com/mcp`.
+
+Any Docker host (Railway, Fly.io, a VPS) works too — just set `MCP_TRANSPORT=http`
+and expose the port. Render injects `PORT` automatically.
+
+### How users connect (with their own key)
+
+Clients that support remote MCP servers with custom headers (e.g. Cursor, Cline):
+
+```json
+{
+  "mcpServers": {
+    "coinmarketcap": {
+      "url": "https://<your-app>.onrender.com/mcp",
+      "headers": { "X-Moralis-Key": "THEIR_OWN_MORALIS_KEY" }
+    }
+  }
+}
+```
+
+For **Claude Desktop**, connect through the `mcp-remote` bridge:
+
+```json
+{
+  "mcpServers": {
+    "coinmarketcap": {
+      "command": "npx",
+      "args": [
+        "mcp-remote", "https://<your-app>.onrender.com/mcp",
+        "--header", "X-Moralis-Key:THEIR_OWN_MORALIS_KEY"
+      ]
+    }
+  }
+}
+```
+
+Each user gets their own free Moralis key at [moralis.io](https://moralis.io).
+
+---
+
 ## 🐛 Troubleshooting
 
 ### "Module not found" error

@@ -15,21 +15,18 @@ services:
     restart: unless-stopped
     
   
+    # Multi-user remote MCP server: no MORALIS_API_KEY here — each user sends
+    # their own key in the 'X-Moralis-Key' request header.
     environment:
-      - MORALIS_API_KEY=${MORALIS_API_KEY}
+      - MCP_TRANSPORT=http
+      - PORT=8000
       - API_BASE_URL=${API_BASE_URL:-https://api.coinmarketcap.com/data-api/v3}
       - API_TIMEOUT=${API_TIMEOUT:-30}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    
-    
-    env_file:
-      - .env
-    
-    
-    stdin_open: true  
-    tty: true         
-    
-    
+
+    ports:
+      - "8000:8000"  # MCP endpoint at http://localhost:8000/mcp
+
     volumes:
       - ./logs:/app/logs
     
