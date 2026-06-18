@@ -1076,7 +1076,7 @@ def build_http_app():
     from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route
-    from starlette.responses import JSONResponse
+    from starlette.responses import JSONResponse, HTMLResponse, PlainTextResponse
 
     session_manager = StreamableHTTPSessionManager(
         app=server,
@@ -1084,8 +1084,22 @@ def build_http_app():
         stateless=True,
     )
 
+    # Load the landing page once at startup; it auto-fills the live /mcp URL
+    # client-side from window.location, so it works on any host with no config.
+    _landing_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    try:
+        with open(_landing_path, encoding="utf-8") as _f:
+            _landing_html = _f.read()
+    except OSError:
+        _landing_html = None
+
     async def handle_mcp(scope, receive, send):
         await session_manager.handle_request(scope, receive, send)
+
+    async def landing(_request):
+        if _landing_html is None:
+            return PlainTextResponse("CoinMarketCap MCP server. MCP endpoint: /mcp")
+        return HTMLResponse(_landing_html)
 
     async def health(_request):
         return JSONResponse({"status": "ok", "server": "coinmarketcap-mcp"})
@@ -1115,6 +1129,7 @@ def build_http_app():
 
     return Starlette(
         routes=[
+            Route("/", landing),
             Route("/health", health),
             # MCP endpoint. Requests to /mcp are 307-redirected to /mcp/, which
             # preserves the POST body, so clients may use either form.
