@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CoinLens MCP — Crypto market &amp; portfolio analysis inside your AI assistant</title>
+<meta name="description" content="A hosted Model Context Protocol server that gives Claude, Cursor and any MCP client real-time crypto market data and multi-chain wallet portfolio analysis — through plain conversation." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f7f6f3;
+    --ink: #1b1c1e;
+    --ink-soft: #43464d;
+    --muted: #82868f;
+    --line: #ece9e3;
+    --line-strong: #ddd9d1;
+    --accent: #0e7c5a;
+    --accent-soft: #e7f3ee;
+    --code-bg: #15171c;
+    --code-line: #262a33;
+    --serif: "Lora", Georgia, "Times New Roman", serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "SF Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --radius: 10px;
+    --maxw: 760px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* nav */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner {
+    max-width: 1040px; margin: 0 auto; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.01em; color: var(--ink); }
+  .brand:hover { text-decoration: none; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--ink); color: #fff; display: grid; place-items: center;
+    font-family: var(--serif); font-size: 15px; font-weight: 600;
+  }
+  .nav-links { display: flex; align-items: center; gap: 26px; font-size: 15px; }
+  .nav-links a { color: var(--ink-soft); }
+  .nav-links a:hover { color: var(--ink); text-decoration: none; }
+  .nav-links .ghbtn {
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 7px 14px; color: var(--ink);
+  }
+  .nav-links .ghbtn:hover { border-color: var(--ink); }
+  @media (max-width: 680px) { .nav-links a:not(.ghbtn) { display: none; } }
+
+  /* hero */
+  header.hero { padding: 84px 0 56px; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 6px 13px; margin-bottom: 26px;
+  }
+  .kicker .live { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  h1 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: clamp(2.2rem, 5.2vw, 3.3rem); line-height: 1.14;
+    letter-spacing: -0.015em; color: var(--ink); margin-bottom: 22px;
+  }
+  .lede { font-size: clamp(1.05rem, 2.2vw, 1.22rem); color: var(--ink-soft); max-width: 620px; margin-bottom: 34px; }
+  .cta { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 9px; font-size: 15px; font-weight: 500;
+    cursor: pointer; border: 1px solid transparent; transition: background .15s, border-color .15s, transform .1s;
+  }
+  .btn:hover { text-decoration: none; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #000; }
+  .btn-ghost { background: #fff; color: var(--ink); border-color: var(--line-strong); }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* generic section */
+  section { padding: 56px 0; border-top: 1px solid var(--line); }
+  .eyebrow { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; margin-bottom: 14px; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(1.6rem, 3.4vw, 2.1rem); letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 14px; }
+  h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .section-sub { color: var(--ink-soft); margin-bottom: 34px; max-width: 580px; }
+  p + p { margin-top: 16px; }
+
+  /* feature list */
+  .features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px 36px; }
+  @media (max-width: 600px) { .features { grid-template-columns: 1fr; gap: 26px; } }
+  .feature .ico { font-size: 20px; margin-bottom: 8px; display: block; }
+  .feature p { color: var(--ink-soft); font-size: 15.5px; }
+
+  /* chains */
+  .chains { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 14px; color: var(--ink-soft); background: var(--bg-alt); border: 1px solid var(--line); border-radius: 999px; padding: 7px 16px; }
+
+  /* steps */
+  .steps { counter-reset: s; margin-bottom: 32px; }
+  .step { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .step:last-child { border-bottom: none; }
+  .step .num {
+    flex: none; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    display: grid; place-items: center; font-size: 13px; font-weight: 600;
+  }
+  .step p { color: var(--ink-soft); font-size: 15.5px; margin: 0; }
+
+  /* tabs + code */
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab {
+    font-family: var(--sans); font-size: 14px; padding: 8px 15px; border-radius: 8px; cursor: pointer;
+    color: var(--muted); border: 1px solid transparent; background: transparent; transition: background .12s, color .12s;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--ink); background: var(--bg-alt); border-color: var(--line); }
+
+  .codeblock { position: relative; }
+  pre {
+    background: var(--code-bg); border-radius: 12px;
+    padding: 20px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px;
+    line-height: 1.7; color: #d7dbe3;
+  }
+  pre .k { color: #7fd1c0; }   /* keys */
+  pre .s { color: #b9e6a8; }   /* strings */
+  .copy {
+    position: absolute; top: 11px; right: 11px;
+    font-family: var(--sans); font-size: 12px; padding: 5px 11px; border-radius: 7px; cursor: pointer;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--code-line); color: #aeb4c0;
+    transition: color .15s, border-color .15s;
+  }
+  .copy:hover { color: #fff; border-color: #3a4150; }
+  .hidden { display: none; }
+  code.inline { font-family: var(--mono); background: var(--bg-alt); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 13.5px; color: var(--ink); }
+
+  .note { margin-top: 16px; font-size: 14.5px; color: var(--ink-soft); border-left: 2px solid var(--accent); padding: 2px 0 2px 14px; background: var(--accent-soft); border-radius: 0 6px 6px 0; padding: 12px 14px; }
+
+  /* architecture diagram */
+  .diagram { background: var(--bg-alt); border: 1px solid var(--line); border-radius: 14px; padding: 28px 22px; margin: 26px 0 36px; }
+  .layer { display: flex; flex-direction: column; align-items: center; }
+  .node {
+    width: 100%; max-width: 560px; background: #fff; border: 1px solid var(--line-strong);
+    border-radius: 10px; padding: 14px 18px; text-align: center;
+  }
+  .node.head { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .node.accent { border-color: var(--accent); }
+  .node .t { font-weight: 600; font-size: 15px; }
+  .node .d { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .node.head .d { color: #b9bdc5; }
+  .node ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .node ul li { font-size: 13px; color: var(--ink-soft); font-family: var(--mono); }
+  .arrow { display: flex; flex-direction: column; align-items: center; color: var(--muted); padding: 8px 0; }
+  .arrow .lbl { font-size: 12px; font-family: var(--mono); margin-bottom: 2px; }
+  .arrow .ln { font-size: 16px; line-height: 1; }
+  .split { display: flex; gap: 16px; width: 100%; max-width: 560px; }
+  .split .node { max-width: none; flex: 1; }
+  @media (max-width: 520px) { .split { flex-direction: column; } }
+
+  /* architecture prose */
+  .doc h3 { margin-top: 30px; font-size: 18px; }
+  .doc p, .doc li { color: var(--ink-soft); }
+  .doc ul { margin: 12px 0 0 20px; }
+  .doc li { margin-bottom: 8px; }
+  .doc li strong { color: var(--ink); font-weight: 600; }
+
+  table.lifecycle { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14.5px; }
+  table.lifecycle td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-soft); vertical-align: top; }
+  table.lifecycle td:first-child { width: 34px; font-weight: 600; color: var(--accent); font-family: var(--mono); }
+
+  /* tools */
+  .toolcols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 600px) { .toolcols { grid-template-columns: 1fr; } }
+  .toolcard { border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .toolcard h3 { margin-bottom: 12px; }
+  .toolcard p { font-size: 14px; line-height: 2; }
+
+  footer { border-top: 1px solid var(--line); padding: 40px 0 60px; color: var(--muted); font-size: 14.5px; }
+  footer .wrap { display: flex; flex-direction: column; gap: 8px; }
+  footer a { color: var(--ink-soft); }
+  footer .links { display: flex; gap: 18px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="#top"><span class="mark">C</span> CoinLens MCP</a>
+    <div class="nav-links">
+      <a href="#what">Overview</a>
+      <a href="#connect">Connect</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#tools">Tools</a>
+      <a class="ghbtn" id="ghlink" href="https://github.com/Alg0-labs/crypto-portfolio-mcp">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<div id="top"></div>
+<div class="wrap">
+  <header class="hero">
+    <span class="kicker"><span class="live"></span> Live remote MCP server</span>
+    <h1>Crypto market &amp; portfolio analysis, right inside your AI assistant.</h1>
+    <p class="lede">CoinLens is a hosted Model Context Protocol server. It gives Claude, Cursor, and any MCP client real-time prices and multi-chain wallet analysis — through plain conversation. Bring your own free API key; we never store it.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#connect">Connect your assistant →</a>
+      <a class="btn btn-ghost" id="ghbtn" href="https://github.com/Alg0-labs/crypto-portfolio-mcp">Read the source</a>
+    </div>
+  </header>
+</div>
+
+<section id="what">
+  <div class="wrap">
+    <div class="eyebrow">What it does</div>
+    <h2>Talk to crypto data</h2>
+    <p class="section-sub">Twelve tools your AI can call on your behalf. No dashboards, no copy-pasting between tabs — you just ask, and the model fetches and reasons over live data.</p>
+    <div class="features">
+      <div class="feature"><span class="ico">💼</span><h3>Wallet portfolio analysis</h3><p>Hand it any address and get holdings, allocation, and total value across supported chains.</p></div>
+      <div class="feature"><span class="ico">📊</span><h3>Real-time market data</h3><p>Live prices, 24h volume and market cap for thousands of tokens, on demand.</p></div>
+      <div class="feature"><span class="ico">🤖</span><h3>AI recommendations</h3><p>Risk assessment and rebalancing ideas, generated from your actual on-chain holdings.</p></div>
+      <div class="feature"><span class="ico">🌐</span><h3>Multi-chain</h3><p>One server, eight networks. Compare tokens and whole ecosystems side by side.</p></div>
+    </div>
+    <div style="margin-top:30px" class="chains">
+      <span class="chip">Ethereum</span><span class="chip">Base</span><span class="chip">Solana</span>
+      <span class="chip">Polygon</span><span class="chip">Arbitrum</span><span class="chip">Optimism</span>
+      <span class="chip">Avalanche</span><span class="chip">BNB Chain</span>
+    </div>
+  </div>
+</section>
+
+<section id="connect">
+  <div class="wrap">
+    <div class="eyebrow">Get started</div>
+    <h2>Connect your AI assistant</h2>
+    <p class="section-sub">Works with any MCP client. Pick yours, paste the config, and you're talking to live crypto data in under a minute.</p>
+
+    <div class="steps">
+      <div class="step"><span class="num">1</span><p>Grab a free Moralis API key at <a href="https://moralis.io" target="_blank" rel="noopener">moralis.io</a> — needed only for the four wallet tools. Market-data tools need no key at all.</p></div>
+      <div class="step"><span class="num">2</span><p>Add the config below to your client, replacing <code class="inline">YOUR_MORALIS_KEY</code> with your own key.</p></div>
+      <div class="step"><span class="num">3</span><p>Restart the client and ask: <em>"What's the price of ETH?"</em> or <em>"Analyze wallet 0x… on Ethereum."</em></p></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="claude">Claude Desktop</button>
+      <button class="tab" data-tab="cursor">Cursor / Cline</button>
+      <button class="tab" data-tab="raw">Endpoint</button>
+    </div>
+
+    <div class="codeblock" data-panel="claude">
+      <button class="copy">Copy</button>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"coinlens"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [
+        <span class="s">"mcp-remote"</span>,
+        <span class="s">"__MCP_URL__"</span>,
+        <span class="s">"--header"</span>,
+        <span class="s">"X-Moralis-Key:YOUR_MORALIS_KEY"</span>
+      ]
+    }
+  }
+}</pre>
+      <p class="note">Add to <code class="inline">claude_desktop_config.json</code> via Settings ▸ Developer ▸ Edit Config. The <code class="inline">mcp-remote</code> bridge ships with npx; nothing to install.</p>
+    </div>
+
+    <div class="codeblock hidden" data-panel="cursor">
+      <button class="copy">Copy</button>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"coinlens"</span>: {
+      <span class="k">"url"</span>: <span class="s">"__MCP_URL__"</span>,
+      <span class="k">"headers"</span>: {
+        <span class="k">"X-Moralis-Key"</span>: <span class="s">"YOUR_MORALIS_KEY"</span>
+      }
+    }
+  }
+}</pre>
+      <p class="note">For clients that support remote MCP servers with custom headers directly.</p>
+    </div>
+
+    <div class="codeblock hidden" data-panel="raw">
+      <button class="copy">Copy</button>
+<pre><span class="k">MCP endpoint</span>   __MCP_URL__
+<span class="k">Transport</span>      Streamable HTTP (stateless)
+<span class="k">Auth header</span>    X-Moralis-Key: YOUR_MORALIS_KEY   <span style="color:#6b7280">(portfolio tools only)</span>
+<span class="k">Health check</span>   __HEALTH_URL__</pre>
+      <p class="note">We store no keys. Every request carries the caller's own key, so usage always stays on your account.</p>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap doc">
+    <div class="eyebrow">Documentation</div>
+    <h2>Technical architecture</h2>
+    <p class="section-sub">How CoinLens is built — the request path from your AI assistant, through the transport layer, to live market and on-chain data sources.</p>
+
+    <div class="diagram">
+      <div class="layer">
+        <div class="node head">
+          <div class="t">AI Assistant</div>
+          <div class="d">Claude Desktop · Cursor · Cline · any MCP client</div>
+        </div>
+        <div class="arrow"><span class="lbl">MCP protocol · JSON-RPC 2.0</span><span class="ln">↓</span></div>
+        <div class="node">
+          <div class="t">Transport bridge</div>
+          <div class="d">mcp-remote (stdio↔HTTP) &nbsp;or&nbsp; native remote MCP</div>
+        </div>
+        <div class="arrow"><span class="lbl">HTTPS + X-Moralis-Key header</span><span class="ln">↓</span></div>
+        <div class="node accent">
+          <div class="t">CoinLens MCP Server</div>
+          <div class="d">Starlette + Uvicorn · stateless Streamable HTTP at /mcp · hosted on Render</div>
+          <ul>
+            <li>· StreamableHTTPSessionManager</li>
+            <li>· 12 tools (8 market · 4 portfolio)</li>
+            <li>· PortfolioAnalyzer + formatters / validators</li>
+          </ul>
+        </div>
+        <div class="arrow"><span class="lbl">async httpx calls</span><span class="ln">↓</span></div>
+        <div class="split">
+          <div class="node">
+            <div class="t">CoinMarketCap</div>
+            <div class="d">prices · volume · market cap · token metadata</div>
+          </div>
+          <div class="node">
+            <div class="t">Moralis</div>
+            <div class="d">on-chain wallet balances across 8 networks</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Design principles</h3>
+    <ul>
+      <li><strong>Protocol-native.</strong> The server is a first-class MCP server, not a REST API with an adapter. Tools are declared through <code class="inline">@server.list_tools()</code> and dispatched through <code class="inline">@server.call_tool()</code>, so any compliant client discovers and calls them with zero custom glue.</li>
+      <li><strong>Two transports, one codebase.</strong> Locally it runs over <strong>stdio</strong> (the classic Claude Desktop integration). Hosted, the same server is wrapped in a Starlette ASGI app exposing the <strong>Streamable HTTP</strong> transport at <code class="inline">/mcp</code>. The transport is selected at boot by the <code class="inline">MCP_TRANSPORT</code> env var.</li>
+      <li><strong>Stateless &amp; multi-user.</strong> The HTTP transport runs in stateless mode — every request is fully independent, with no server-side session affinity. That makes it safe to host publicly and trivial to scale horizontally.</li>
+      <li><strong>Bring-your-own-key.</strong> The server holds <em>no</em> Moralis key. Each caller sends their own key per request in the <code class="inline">X-Moralis-Key</code> header, so the operator never pays for users' usage and there is no shared secret to leak or abuse.</li>
+    </ul>
+
+    <h3>Components</h3>
+    <ul>
+      <li><strong>MCP core</strong> (<code class="inline">src/server.py</code>) — tool schema declarations, the dispatch table, and the 12 tool handlers. Also builds the Starlette app (<code class="inline">build_http_app()</code>) and the stdio entrypoint.</li>
+      <li><strong>API clients</strong> (<code class="inline">src/api/</code>) — <code class="inline">CoinMarketCapClient</code> for market data and <code class="inline">MoralisClient</code> for on-chain wallet data. Both are async <code class="inline">httpx</code> clients with timeouts and clean shutdown wired into the app lifespan.</li>
+      <li><strong>Portfolio engine</strong> (<code class="inline">src/utils/portfolio.py</code>) — turns raw balances into allocation, valuation, risk signals and rebalancing recommendations.</li>
+      <li><strong>Domain utilities</strong> (<code class="inline">src/utils/</code>) — <code class="inline">chains.py</code> (the eight-network registry), <code class="inline">validators.py</code> (address &amp; symbol checks), and <code class="inline">formatters.py</code> (human-readable output the model relays back to you).</li>
+    </ul>
+
+    <h3>Request lifecycle</h3>
+    <p>A single tool call — say <em>"analyze wallet 0x… on Ethereum"</em> — flows through these stages:</p>
+    <table class="lifecycle">
+      <tr><td>1</td><td>The model decides a tool is needed and emits a JSON-RPC <code class="inline">tools/call</code> request to the client.</td></tr>
+      <tr><td>2</td><td>The client (or the <code class="inline">mcp-remote</code> bridge) POSTs it over HTTPS to <code class="inline">/mcp</code>, carrying the <code class="inline">X-Moralis-Key</code> header.</td></tr>
+      <tr><td>3</td><td>The stateless session manager parses the request and routes it to the matching tool handler.</td></tr>
+      <tr><td>4</td><td>The handler validates arguments, then calls CoinMarketCap and/or Moralis with the caller's key.</td></tr>
+      <tr><td>5</td><td>The portfolio engine and formatters shape the response into readable text content.</td></tr>
+      <tr><td>6</td><td>The result is returned as an MCP <code class="inline">TextContent</code> payload; the model reads it and answers you in natural language.</td></tr>
+    </table>
+
+    <h3>Deployment</h3>
+    <ul>
+      <li><strong>Container.</strong> A single <code class="inline">Dockerfile</code> builds the server; <code class="inline">MCP_TRANSPORT=http</code> selects the hosted transport and the app binds to the platform-injected <code class="inline">PORT</code>.</li>
+      <li><strong>Render blueprint.</strong> <code class="inline">render.yaml</code> deploys the container with a <code class="inline">/health</code> check and no secret env vars — the BYO-key model means there's nothing to configure per user. Any Docker host (Railway, Fly.io, a VPS) works identically.</li>
+      <li><strong>Separation of concerns.</strong> The landing page is a static site (hosted on Vercel, so it loads instantly), while the MCP backend runs as a persistent container on Render. The two are decoupled: the page only talks to the backend when a client actually connects.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="wrap">
+    <div class="eyebrow">Reference</div>
+    <h2>Twelve tools</h2>
+    <p class="section-sub">Everything the model can call. Market-data tools are key-free; portfolio tools use the caller's Moralis key.</p>
+    <div class="toolcols">
+      <div class="toolcard">
+        <h3>Market data · 8</h3>
+        <p><code class="inline">get_token_info</code> · <code class="inline">list_tokens</code> · <code class="inline">compare_tokens</code> · <code class="inline">get_token_analytics</code> · <code class="inline">get_market_metrics</code> · <code class="inline">list_chains</code> · <code class="inline">compare_chains</code> · <code class="inline">search_token_across_chains</code></p>
+      </div>
+      <div class="toolcard">
+        <h3>Portfolio · 4</h3>
+        <p><code class="inline">analyze_wallet</code> · <code class="inline">get_portfolio_recommendations</code> · <code class="inline">compare_portfolio_to_market</code> · <code class="inline">get_portfolio_summary</code></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a id="ghfoot" href="https://github.com/Alg0-labs/crypto-portfolio-mcp">GitHub</a>
+      <a href="#architecture">Architecture</a>
+      <a href="https://moralis.io" target="_blank" rel="noopener">Moralis</a>
+      <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a>
+    </div>
+    <div>CoinLens MCP — built on the Model Context Protocol · Data from CoinMarketCap &amp; Moralis · MIT License</div>
+    <div>Built by <a href="https://github.com/vibhudixit123" target="_blank" rel="noopener">Vibhu Dixit</a></div>
+  </div>
+</footer>
+
+<script>
+  // ── Backend location ───────────────────────────────────────────────
+  // This page is hosted on Vercel; the MCP backend runs separately on
+  // Render. Point BACKEND_ORIGIN at your deployed Render service so the
+  // config snippets below show the correct endpoint.
+  //
+  //   • Set it to your Render URL  -> configs use that URL directly (robust).
+  //   • Leave it ""                -> uses this page's own origin + path,
+  //                                   for when you proxy /mcp through your
+  //                                   own domain via vercel.json rewrites.
+  var BACKEND_ORIGIN = "https://crypto-portfolio-mcp.onrender.com"; // ← your Render service
+
+  var origin = BACKEND_ORIGIN || window.location.origin;
+  var base = BACKEND_ORIGIN ? "" : window.location.pathname.replace(/\/+$/, "");
+  var mcpUrl = origin + base + "/mcp";
+  var healthUrl = origin + base + "/health";
+
+  document.body.innerHTML = document.body.innerHTML
+    .split("__MCP_URL__").join(mcpUrl)
+    .split("__HEALTH_URL__").join(healthUrl);
+
+  // Re-bind interactivity after the innerHTML swap above.
+  document.querySelectorAll(".tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+      tab.classList.add("active");
+      var name = tab.getAttribute("data-tab");
+      document.querySelectorAll("[data-panel]").forEach(function (p) {
+        p.classList.toggle("hidden", p.getAttribute("data-panel") !== name);
+      });
+    });
+  });
+
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = btn.parentElement.querySelector("pre");
+      navigator.clipboard.writeText(pre.innerText).then(function () {
+        var old = btn.innerText; btn.innerText = "Copied ✓";
+        setTimeout(function () { btn.innerText = old; }, 1400);
+      });
+    });
+  });
+</script>
+</body>
+</html>
